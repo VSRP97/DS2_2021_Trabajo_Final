@@ -1,0 +1,97 @@
+{
+	"name": "dataflow1",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds2ca",
+						"type": "DatasetReference"
+					},
+					"name": "source1"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds2db_edad",
+						"type": "DatasetReference"
+					},
+					"name": "sinkEdad"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds2db_estado",
+						"type": "DatasetReference"
+					},
+					"name": "sinkEstado"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds2_dept",
+						"type": "DatasetReference"
+					},
+					"name": "sinkDep"
+				}
+			],
+			"transformations": [
+				{
+					"name": "Seleccionar1"
+				},
+				{
+					"name": "SelecEstado"
+				},
+				{
+					"name": "SelecEdad"
+				},
+				{
+					"name": "SelecDep"
+				},
+				{
+					"name": "Agregado1"
+				},
+				{
+					"name": "Agregado2"
+				},
+				{
+					"name": "Agregado3"
+				},
+				{
+					"name": "Seleccionar2"
+				},
+				{
+					"name": "Seleccionar3"
+				},
+				{
+					"name": "Seleccionar4"
+				},
+				{
+					"name": "Clavesuplente3"
+				},
+				{
+					"name": "Columnaderivada1"
+				},
+				{
+					"name": "Ordenar3"
+				},
+				{
+					"name": "Clavesuplente2"
+				},
+				{
+					"name": "Columnaderivada5"
+				},
+				{
+					"name": "Filtrar1"
+				},
+				{
+					"name": "Columnaderivada6"
+				},
+				{
+					"name": "Sort1"
+				}
+			],
+			"script": "source(output(\n\t\t{ID de caso} as string,\n\t\t{Fecha de notificación} as string,\n\t\t{Codigo DIVIPOLA} as string,\n\t\t{Ciudad de ubicación} as string,\n\t\t{Departamento o Distrito } as string,\n\t\t{atención} as string,\n\t\tEdad as string,\n\t\tSexo as string,\n\t\tTipo as string,\n\t\tEstado as string,\n\t\t{País de procedencia} as string,\n\t\tFIS as string,\n\t\t{Fecha de muerte} as string,\n\t\t{Fecha diagnostico} as string,\n\t\t{Fecha recuperado} as string,\n\t\t{fecha reporte web} as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> source1\nsource1 select(mapColumn(\n\t\tDepartamento = {Departamento o Distrito },\n\t\tEdad,\n\t\tEstado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Seleccionar1\nColumnaderivada1 select(mapColumn(\n\t\tEstado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelecEstado\nColumnaderivada1 select(mapColumn(\n\t\tEdad\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelecEdad\nColumnaderivada1 select(mapColumn(\n\t\t{Departamento } = Departamento\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelecDep\nSelecDep aggregate(groupBy({Departamento }),\n\tsurr_ubicacion = count()) ~> Agregado1\nColumnaderivada5 aggregate(groupBy(Estado),\n\tsurr_estado = count()) ~> Agregado2\nColumnaderivada6 aggregate(groupBy(Edad),\n\tsurr_edad = count()) ~> Agregado3\nAgregado1 select(mapColumn(\n\t\tDepartamento = {Departamento }\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Seleccionar2\nClavesuplente2 select(mapColumn(\n\t\tsurr_edad,\n\t\tEdad\n\t),\n\tskipDuplicateMapInputs: false,\n\tskipDuplicateMapOutputs: false) ~> Seleccionar3\nClavesuplente3 select(mapColumn(\n\t\tsurr_estado,\n\t\tEstado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Seleccionar4\nAgregado2 keyGenerate(output(surr_estado as long),\n\tstartAt: 1L) ~> Clavesuplente3\nFiltrar1 derive(Edad = toInteger(Edad)) ~> Columnaderivada1\nSeleccionar4 sort(asc(surr_estado, true),\n\tcaseInsensitive: true) ~> Ordenar3\nSort1 keyGenerate(output(surr_edad as long),\n\tstartAt: 1L) ~> Clavesuplente2\nSelecEstado derive(Estado = initCap(Estado)) ~> Columnaderivada5\nSeleccionar1 filter(isInteger(Edad)) ~> Filtrar1\nSelecEdad derive(Edad = iif(\r\n    toInteger(Edad/10) != 0 && toInteger(Edad/10) < 9, \r\n    concat(toString(toInteger(Edad/10)), '0-', toString(toInteger(Edad/10)), '9'), \r\n    iif(\r\n        toInteger(Edad/10) == 0, \r\n        '0-9', \r\n        '90 o más'\r\n    )\r\n)) ~> Columnaderivada6\nAgregado3 sort(asc(Edad, true)) ~> Sort1\nSeleccionar3 sink(allowSchemaDrift: true,\n\tvalidateSchema: true,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\trecreate:true,\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sinkEdad\nOrdenar3 sink(allowSchemaDrift: true,\n\tvalidateSchema: true,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\trecreate:true,\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sinkEstado\nSeleccionar2 sink(allowSchemaDrift: true,\n\tvalidateSchema: true,\n\tinput(\n\t\t{ID de caso} as string,\n\t\t{Fecha de notificación} as string,\n\t\t{Codigo DIVIPOLA} as string,\n\t\t{Ciudad de ubicación} as string,\n\t\t{Departamento o Distrito } as string,\n\t\t{atención} as string,\n\t\tEdad as string,\n\t\tSexo as string,\n\t\tTipo as string,\n\t\tEstado as string,\n\t\t{País de procedencia} as string,\n\t\tFIS as string,\n\t\t{Fecha de muerte} as string,\n\t\t{Fecha diagnostico} as string,\n\t\t{Fecha recuperado} as string,\n\t\t{fecha reporte web} as string\n\t),\n\tpartitionFileNames:['departamento.csv'],\n\ttruncate: true,\n\tpartitionBy('hash', 1)) ~> sinkDep"
+		}
+	}
+}

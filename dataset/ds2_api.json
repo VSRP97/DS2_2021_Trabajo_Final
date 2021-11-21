@@ -1,0 +1,24 @@
+{
+	"name": "ds2_api",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ds2_ls_api",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"dept": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "RestResource",
+		"typeProperties": {
+			"relativeUrl": {
+				"value": "@concat('https://dpt-api.herokuapp.com/departments/', dataset().dept, '/fix')",
+				"type": "Expression"
+			}
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

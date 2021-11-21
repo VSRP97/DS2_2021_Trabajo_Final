@@ -1,0 +1,99 @@
+{
+	"name": "dataflow2",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "ds2db_departamento",
+						"type": "DatasetReference"
+					},
+					"name": "sourceDept"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds2ca",
+						"type": "DatasetReference"
+					},
+					"name": "sourceCovid"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds2db_edad",
+						"type": "DatasetReference"
+					},
+					"name": "sourceEdad"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds2db_estado",
+						"type": "DatasetReference"
+					},
+					"name": "sourceEstado"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "ds2db_dept_final",
+						"type": "DatasetReference"
+					},
+					"name": "sink1"
+				},
+				{
+					"dataset": {
+						"referenceName": "ds2db_hechos",
+						"type": "DatasetReference"
+					},
+					"name": "sink2"
+				}
+			],
+			"transformations": [
+				{
+					"name": "Select1"
+				},
+				{
+					"name": "Join1"
+				},
+				{
+					"name": "Select2"
+				},
+				{
+					"name": "Aggregate1"
+				},
+				{
+					"name": "SurrogateKey1"
+				},
+				{
+					"name": "Select3"
+				},
+				{
+					"name": "Join2"
+				},
+				{
+					"name": "Select4"
+				},
+				{
+					"name": "Join3"
+				},
+				{
+					"name": "Select5"
+				},
+				{
+					"name": "Join4"
+				},
+				{
+					"name": "Select6"
+				},
+				{
+					"name": "Aggregate2"
+				},
+				{
+					"name": "DerivedColumn1"
+				}
+			],
+			"script": "source(output(\n\t\tBasura as string,\n\t\tDepartamento as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> sourceDept\nsource(output(\n\t\t{ID de caso} as string,\n\t\t{Fecha de notificación} as string,\n\t\t{Codigo DIVIPOLA} as string,\n\t\t{Ciudad de ubicación} as string,\n\t\t{Departamento o Distrito } as string,\n\t\t{atención} as string,\n\t\tEdad as string,\n\t\tSexo as string,\n\t\tTipo as string,\n\t\tEstado as string,\n\t\t{País de procedencia} as string,\n\t\tFIS as string,\n\t\t{Fecha de muerte} as string,\n\t\t{Fecha diagnostico} as string,\n\t\t{Fecha recuperado} as string,\n\t\t{fecha reporte web} as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tignoreNoFilesFound: false) ~> sourceCovid\nsource(output(\n\t\tsurr_edad as long,\n\t\tEdad as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> sourceEdad\nsource(output(\n\t\tsurr_estado as long,\n\t\tEstado as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tisolationLevel: 'READ_UNCOMMITTED',\n\tformat: 'table') ~> sourceEstado\nsourceCovid select(mapColumn(\n\t\tDepartamento = {Departamento o Distrito },\n\t\tEdad,\n\t\tEstado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select1\nSelect1, sourceDept join(Select1@Departamento == Basura,\n\tjoinType:'right',\n\tbroadcast: 'auto')~> Join1\nJoin1 select(mapColumn(\n\t\tDepartamento = sourceDept@Departamento,\n\t\tEdad,\n\t\tEstado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select2\nsourceDept aggregate(groupBy(Departamento),\n\tsurr_departamento = count()) ~> Aggregate1\nAggregate1 keyGenerate(output(surr_departamento as long),\n\tstartAt: 1L) ~> SurrogateKey1\nSurrogateKey1 select(mapColumn(\n\t\tsurr_departamento,\n\t\tDepartamento\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select3\nSelect2, Select3 join(Select2@Departamento == Select3@Departamento,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> Join2\nJoin2 select(mapColumn(\n\t\tsurr_departamento,\n\t\tEdad,\n\t\tEstado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select4\nDerivedColumn1, sourceEdad join(DerivedColumn1@Edad == toInteger(substring(sourceEdad@Edad, 1, 1)),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> Join3\nJoin3 select(mapColumn(\n\t\tsurr_departamento,\n\t\tsurr_edad,\n\t\tEstado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select5\nSelect5, sourceEstado join(Select5@Estado == sourceEstado@Estado,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> Join4\nJoin4 select(mapColumn(\n\t\tsurr_departamento,\n\t\tsurr_edad,\n\t\tsurr_estado\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> Select6\nSelect6 aggregate(groupBy(surr_departamento,\n\t\tsurr_edad,\n\t\tsurr_estado),\n\tTotal = count()) ~> Aggregate2\nSelect4 derive(Edad = iif(\r\n    toInteger(toInteger(Edad)/10) < 9, \r\n    toInteger(toInteger(Edad)/10), \r\n    9\r\n    )) ~> DerivedColumn1\nSelect3 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\trecreate:true,\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink1\nAggregate2 sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:false,\n\trecreate:true,\n\tformat: 'table',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\terrorHandlingOption: 'stopOnFirstError') ~> sink2"
+		}
+	}
+}

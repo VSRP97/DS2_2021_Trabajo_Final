@@ -1,0 +1,17 @@
+{
+	"name": "ds2db_dept_final",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ds2_ls_db",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "ds2db",
+			"table": "deptF"
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

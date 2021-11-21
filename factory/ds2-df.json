@@ -1,0 +1,9 @@
+{
+	"name": "ds2-df",
+	"location": "eastus",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "b9814399-9792-4656-b7fe-09a4eb705577",
+		"tenantId": "bab0b679-bd5f-4fe8-b516-c6b8b317c782"
+	}
+}
